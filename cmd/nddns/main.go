@@ -31,6 +31,8 @@ func init() {
 	flag.StringVar(&ttl, "ttl", "300", "Time to live for A record")
 	flag.StringVar(&pollIntervalString, "poll", "30m", "How often to poll for changes to IP")
 
+	flag.Parse()
+
 	if personalAccessToken == "" {
 		log.Fatalln("Personal access token required. Use -pat flag or set NDDNS_PAT environment variable")
 	}
