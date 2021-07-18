@@ -14,14 +14,17 @@ import (
 
 var (
 	personalAccessToken string
-	domain              string
-	subdomain           string
+	hostname            string
 	ttl                 string
 	pollInterval        time.Duration
 )
 
 func init() {
-	var pollIntervalString string
+	var (
+		domain             string
+		subdomain          string
+		pollIntervalString string
+	)
 	flag.StringVar(&personalAccessToken, "pat", os.Getenv("NDDNS_PAT"), "Netlify personal access token")
 	flag.StringVar(&domain, "domain", "", "Netlify controlled domain")
 	flag.StringVar(&subdomain, "subdomain", "", "Subdomain to which A record will be added")
@@ -35,6 +38,7 @@ func init() {
 	if domain == "" {
 		log.Fatalln("Domain required. Use -domain flag")
 	}
+	hostname = BuildHostname(domain, subdomain)
 
 	p, err := time.ParseDuration(pollIntervalString)
 	if err != nil {
@@ -78,7 +82,7 @@ func GetCurrentIpv4() (net.IP, error) {
 	return ip, nil
 }
 
-func BuildDomain(domain, subdomain string) string {
+func BuildHostname(domain, subdomain string) string {
 	if subdomain == "" {
 		return domain
 	}
