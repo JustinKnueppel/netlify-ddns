@@ -314,8 +314,6 @@ func PollForChanges() error {
 		return err
 	}
 
-	log.Printf("Target zone id: %v", zoneId)
-
 	dnsRecord, err := GetCurrentRecord(zoneId)
 	if err != nil {
 		return err
