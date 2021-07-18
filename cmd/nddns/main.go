@@ -22,17 +22,20 @@ var (
 	domain              string
 	subdomain           string
 	hostname            string
-	ttl                 string
+	ttl                 int64
 	pollInterval        time.Duration
 )
 
 func init() {
-	var pollIntervalString string
+	var (
+		pollIntervalString string
+		ttlString          string
+	)
 
 	flag.StringVar(&personalAccessToken, "pat", os.Getenv("NDDNS_PAT"), "Netlify personal access token")
 	flag.StringVar(&domain, "domain", "", "Netlify controlled domain")
 	flag.StringVar(&subdomain, "subdomain", "", "Subdomain to which A record will be added")
-	flag.StringVar(&ttl, "ttl", "300", "Time to live for A record")
+	flag.StringVar(&ttlString, "ttl", "300", "Time to live for A record")
 	flag.StringVar(&pollIntervalString, "poll", "30m", "How often to poll for changes to IP")
 
 	flag.Parse()
@@ -45,6 +48,17 @@ func init() {
 		log.Fatalln("Domain required. Use -domain flag")
 	}
 	hostname = BuildHostname(domain, subdomain)
+
+	t, err := strconv.ParseInt(ttlString, 10, 32)
+	if err != nil {
+		log.Fatalln("Failed to parse ttl as number")
+	}
+
+	if t <= 0 {
+		log.Fatalf("TTL must be positive. Found: %v", t)
+	}
+
+	ttl = t
 
 	p, err := time.ParseDuration(pollIntervalString)
 	if err != nil {
