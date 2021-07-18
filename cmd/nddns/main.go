@@ -93,7 +93,7 @@ func main() {
 
 	if dnsRecord == nil {
 		log.Printf("No DNS record found for %s. Updating to current IPv4 of: %v", hostname, currentIpv4)
-		CreateIPv4Record(currentIpv4, zoneId)
+		CreateIPv4Record(zoneId, currentIpv4)
 		return
 	}
 
@@ -107,9 +107,7 @@ func main() {
 	DeleteIpv4Record(zoneId, dnsRecord.Id)
 
 	log.Printf("Creating DNS A record for %s with value %v", hostname, currentIpv4)
-	CreateIPv4Record(currentIpv4, zoneId)
-
-	log.Printf("Current IPv4 record: %v", dnsRecord)
+	CreateIPv4Record(zoneId, currentIpv4)
 }
 
 func BodyToString(res *http.Response) (string, error) {
@@ -263,7 +261,7 @@ type CreateRecordResponse struct {
 	Ttl      int64  `json:"ttl"`
 }
 
-func CreateIPv4Record(target net.IP, zoneId string) error {
+func CreateIPv4Record(zoneId string, target net.IP) error {
 	client := http.Client{}
 
 	body := CreateRecordBody{
