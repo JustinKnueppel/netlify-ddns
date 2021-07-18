@@ -61,11 +61,19 @@ func main() {
 	}
 	log.Printf("Current IPv4: %v", currentIpv4)
 
-	recordIpv4, err := GetCurrentRecordIpv4()
+	zoneId, err := GetZoneId(domain, personalAccessToken)
+
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("Current IPv4 record: %v", recordIpv4)
+
+	log.Printf("Target zone id: %v", zoneId)
+
+	dnsRecord, err := GetCurrentRecord(zoneId)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("Current IPv4 record: %v", dnsRecord)
 }
 
 func BodyToString(res *http.Response) (string, error) {
@@ -163,14 +171,52 @@ func GetZoneId(domain, pat string) (string, error) {
 	return zoneId, nil
 }
 
-func GetCurrentRecordIpv4() (net.IP, error) {
-	zoneId, err := GetZoneId(domain, personalAccessToken)
+type DnsRecord struct {
+	Id       string `json:"id"`
+	Hostname string `json:"hostname"`
+	Value    string `json:"value"`
+}
+
+type RecordNotFoundError struct {
+	Hostname string
+}
+
+func (e *RecordNotFoundError) Error() string {
+	return fmt.Sprintf("No dns record found found for hostname %s", e.Hostname)
+}
+
+func GetCurrentRecord(zoneId string) (*DnsRecord, error) {
+	client := http.Client{}
+	recordsRequest, err := http.NewRequest("GET", fmt.Sprintf("%s/dns_zones/%s/dns_records?access_token=%s", apiEndpoint, zoneId, personalAccessToken), nil)
+	if err != nil {
+		return nil, err
+	}
+	recordsRequest.Header.Set("Content-Type", "application/json")
+
+	res, err := client.Do(recordsRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	recordsString, err := BodyToString(res)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		dnsRecords []DnsRecord
+	)
+	err = json.Unmarshal([]byte(recordsString), &dnsRecords)
 
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("Target zone id: %v", zoneId)
+	for _, record := range dnsRecords {
+		if record.Hostname == hostname {
+			return &record, nil
+		}
+	}
 
-	return nil, nil
+	return nil, &RecordNotFoundError{Hostname: hostname}
 }
