@@ -29,7 +29,7 @@ func init() {
 	flag.StringVar(&domain, "domain", "", "Netlify controlled domain")
 	flag.StringVar(&subdomain, "subdomain", "", "Subdomain to which A record will be added")
 	flag.StringVar(&ttl, "ttl", "300", "Time to live for A record")
-	flag.StringVar(&pollIntervalString, "poll", "", "How often to poll for changes to IP")
+	flag.StringVar(&pollIntervalString, "poll", "30m", "How often to poll for changes to IP")
 
 	if personalAccessToken == "" {
 		log.Fatalln("Personal access token required. Use -pat flag or set NDDNS_PAT environment variable")
