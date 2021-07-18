@@ -72,42 +72,11 @@ func init() {
 
 func main() {
 	log.Println("Starting ddns service...")
-	currentIpv4, err := GetCurrentIpv4()
+
+	err := PollForChanges()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("Current IPv4: %v", currentIpv4)
-
-	zoneId, err := GetZoneId(domain, personalAccessToken)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	log.Printf("Target zone id: %v", zoneId)
-
-	dnsRecord, err := GetCurrentRecord(zoneId)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if dnsRecord == nil {
-		log.Printf("No DNS record found for %s. Updating to current IPv4 of: %v", hostname, currentIpv4)
-		CreateIPv4Record(zoneId, currentIpv4)
-		return
-	}
-
-	if dnsRecord.Value == currentIpv4.String() {
-		log.Println("Value of record matches current IP address")
-		return
-	}
-
-	log.Printf("Record value of %s differs from current IP of %v", dnsRecord.Value, currentIpv4)
-	log.Printf("Deleting DNS record: %s", dnsRecord.Id)
-	DeleteIpv4Record(zoneId, dnsRecord.Id)
-
-	log.Printf("Creating DNS A record for %s with value %v", hostname, currentIpv4)
-	CreateIPv4Record(zoneId, currentIpv4)
 }
 
 func BodyToString(res *http.Response) (string, error) {
@@ -327,5 +296,46 @@ func DeleteIpv4Record(zoneId, recordId string) error {
 	if res.Status != "204" {
 		return fmt.Errorf("failed to delete DNS record %s, got status code %s", recordId, res.Status)
 	}
+	return nil
+}
+
+func PollForChanges() error {
+	currentIpv4, err := GetCurrentIpv4()
+	if err != nil {
+		return err
+	}
+	log.Printf("Current IPv4: %v", currentIpv4)
+
+	zoneId, err := GetZoneId(domain, personalAccessToken)
+
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Target zone id: %v", zoneId)
+
+	dnsRecord, err := GetCurrentRecord(zoneId)
+	if err != nil {
+		return err
+	}
+
+	if dnsRecord == nil {
+		log.Printf("No DNS record found for %s. Updating to current IPv4 of: %v", hostname, currentIpv4)
+		CreateIPv4Record(zoneId, currentIpv4)
+		return nil
+	}
+
+	if dnsRecord.Value == currentIpv4.String() {
+		log.Println("Value of record matches current IP address")
+		return nil
+	}
+
+	log.Printf("Record value of %s differs from current IP of %v", dnsRecord.Value, currentIpv4)
+	log.Printf("Deleting DNS record: %s", dnsRecord.Id)
+	DeleteIpv4Record(zoneId, dnsRecord.Id)
+
+	log.Printf("Creating DNS A record for %s with value %v", hostname, currentIpv4)
+	CreateIPv4Record(zoneId, currentIpv4)
+
 	return nil
 }
