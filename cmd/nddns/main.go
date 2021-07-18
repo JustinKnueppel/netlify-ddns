@@ -56,20 +56,29 @@ func main() {
 	log.Printf("Current IPv4: %v", currentIpv4)
 }
 
+func BodyToString(res *http.Response) (string, error) {
+	defer res.Body.Close()
+
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
 func GetCurrentIpv4() (net.IP, error) {
 	res, err := http.Get("https://icanhazip.com")
 	if err != nil {
 		return nil, err
 	}
 
-	defer res.Body.Close()
-
-	b, err := io.ReadAll(res.Body)
+	resString, err := BodyToString(res)
 	if err != nil {
 		return nil, err
 	}
 
-	ipString := strings.Trim(string(b), "\t\n ")
+	ipString := strings.Trim(resString, "\t\n ")
 
 	ip := net.ParseIP(ipString)
 	if ip == nil {
