@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -87,6 +90,13 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	if dnsRecord == nil {
+		log.Printf("No DNS record found for %s. Updating to current IPv4 of: %v", hostname, currentIpv4)
+		CreateIPv4Record(currentIpv4, zoneId)
+		return
+	}
+
 	log.Printf("Current IPv4 record: %v", dnsRecord)
 }
 
@@ -191,14 +201,6 @@ type DnsRecord struct {
 	Value    string `json:"value"`
 }
 
-type RecordNotFoundError struct {
-	Hostname string
-}
-
-func (e *RecordNotFoundError) Error() string {
-	return fmt.Sprintf("No dns record found found for hostname %s", e.Hostname)
-}
-
 func GetCurrentRecord(zoneId string) (*DnsRecord, error) {
 	client := http.Client{}
 	recordsRequest, err := http.NewRequest("GET", fmt.Sprintf("%s/dns_zones/%s/dns_records?access_token=%s", apiEndpoint, zoneId, personalAccessToken), nil)
@@ -232,5 +234,68 @@ func GetCurrentRecord(zoneId string) (*DnsRecord, error) {
 		}
 	}
 
-	return nil, &RecordNotFoundError{Hostname: hostname}
+	return nil, nil
+}
+
+type CreateRecordBody struct {
+	Type     string `json:"type"`
+	Hostname string `json:"hostname"`
+	Value    string `json:"value"`
+	Ttl      int64  `json:"ttl"`
+}
+
+type CreateRecordResponse struct {
+	Type     string `json:"type"`
+	Hostname string `json:"hostname"`
+	Value    string `json:"value"`
+	Ttl      int64  `json:"ttl"`
+}
+
+func CreateIPv4Record(target net.IP, zoneId string) error {
+	client := http.Client{}
+
+	body := CreateRecordBody{
+		Type:     "A",
+		Hostname: hostname,
+		Value:    target.String(),
+		Ttl:      ttl,
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/dns_zones/%s/dns_records?access_token=%s", apiEndpoint, zoneId, personalAccessToken), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	resString, err := BodyToString(res)
+	if err != nil {
+		return err
+	}
+
+	var resBody CreateRecordResponse
+	err = json.Unmarshal([]byte(resString), &resBody)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Create response body: %v", resBody)
+
+	if resBody.Hostname != hostname ||
+		resBody.Type != "A" ||
+		resBody.Value != target.String() ||
+		resBody.Ttl != ttl {
+		return errors.New("failed to create record")
+	}
+
+	return nil
 }
