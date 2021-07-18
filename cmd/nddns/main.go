@@ -1,12 +1,46 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
+
+var (
+	personalAccessToken string
+	domain              string
+	subdomain           string
+	ttl                 string
+	pollInterval        time.Duration
+)
+
+func init() {
+	var pollIntervalString string
+	flag.StringVar(&personalAccessToken, "pat", "", "Netlify personal access token")
+	flag.StringVar(&domain, "domain", "", "Netlify controlled domain")
+	flag.StringVar(&subdomain, "subdomain", "", "Subdomain to which A record will be added")
+	flag.StringVar(&ttl, "ttl", "300", "Time to live for A record")
+	flag.StringVar(&pollIntervalString, "poll", "", "How often to poll for changes to IP")
+
+	if personalAccessToken == "" {
+		log.Fatalln("Personal access token required. Use -pat flag")
+	}
+
+	if domain == "" {
+		log.Fatalln("Domain required. Use -domain flag")
+	}
+
+	p, err := time.ParseDuration(pollIntervalString)
+	if err != nil {
+		panic(err)
+	}
+	pollInterval = p
+}
 
 func main() {
 	log.Println("Starting ddns service...")
@@ -41,4 +75,11 @@ func GetCurrentIpv4() (net.IP, error) {
 	}
 
 	return ip, nil
+}
+
+func BuildDomain(domain, subdomain string) string {
+	if subdomain == "" {
+		return domain
+	}
+	return fmt.Sprintf("%s.%s", subdomain, domain)
 }
