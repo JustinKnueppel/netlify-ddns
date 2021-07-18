@@ -73,9 +73,13 @@ func init() {
 func main() {
 	log.Println("Starting ddns service...")
 
-	err := PollForChanges()
-	if err != nil {
-		log.Fatalln(err)
+	for {
+		err := PollForChanges()
+		if err != nil {
+			log.Printf("Error occurred: %v", err)
+		}
+
+		time.Sleep(pollInterval)
 	}
 }
 
