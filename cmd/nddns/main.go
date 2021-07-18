@@ -83,15 +83,10 @@ func main() {
 	}
 }
 
-func BodyToString(res *http.Response) (string, error) {
+func ResponseToBodyBytes(res *http.Response) ([]byte, error) {
 	defer res.Body.Close()
 
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(b), nil
+	return io.ReadAll(res.Body)
 }
 
 func GetCurrentIpv4() (net.IP, error) {
@@ -100,12 +95,12 @@ func GetCurrentIpv4() (net.IP, error) {
 		return nil, err
 	}
 
-	resString, err := BodyToString(res)
+	resString, err := ResponseToBodyBytes(res)
 	if err != nil {
 		return nil, err
 	}
 
-	ipString := strings.Trim(resString, "\t\n ")
+	ipString := strings.Trim(string(resString), "\t\n ")
 
 	ip := net.ParseIP(ipString)
 	if ip == nil {
@@ -154,12 +149,12 @@ func GetZoneId(domain, pat string) (string, error) {
 	if err != nil {
 		return zoneId, err
 	}
-	zoneString, err := BodyToString(zoneResponse)
+	zoneBytes, err := ResponseToBodyBytes(zoneResponse)
 	if err != nil {
 		return zoneId, err
 	}
 
-	err = json.Unmarshal([]byte(zoneString), &zones)
+	err = json.Unmarshal(zoneBytes, &zones)
 	if err != nil {
 		return zoneId, err
 	}
@@ -197,7 +192,7 @@ func GetCurrentRecord(zoneId string) (*DnsRecord, error) {
 		return nil, err
 	}
 
-	recordsString, err := BodyToString(res)
+	recordsBytes, err := ResponseToBodyBytes(res)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +200,7 @@ func GetCurrentRecord(zoneId string) (*DnsRecord, error) {
 	var (
 		dnsRecords []DnsRecord
 	)
-	err = json.Unmarshal([]byte(recordsString), &dnsRecords)
+	err = json.Unmarshal(recordsBytes, &dnsRecords)
 
 	if err != nil {
 		return nil, err
@@ -260,13 +255,13 @@ func CreateIPv4Record(zoneId string, target net.IP) error {
 		return err
 	}
 
-	resString, err := BodyToString(res)
+	createRecordsBytes, err := ResponseToBodyBytes(res)
 	if err != nil {
 		return err
 	}
 
 	var resBody CreateRecordResponse
-	err = json.Unmarshal([]byte(resString), &resBody)
+	err = json.Unmarshal(createRecordsBytes, &resBody)
 	if err != nil {
 		return err
 	}
