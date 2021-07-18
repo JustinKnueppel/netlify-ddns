@@ -271,8 +271,6 @@ func CreateIPv4Record(zoneId string, target net.IP) error {
 		return err
 	}
 
-	log.Printf("Create response body: %v", resBody)
-
 	if resBody.Hostname != hostname ||
 		resBody.Type != "A" ||
 		resBody.Value != target.String() ||
