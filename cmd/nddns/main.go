@@ -97,6 +97,18 @@ func main() {
 		return
 	}
 
+	if dnsRecord.Value == currentIpv4.String() {
+		log.Println("Value of record matches current IP address")
+		return
+	}
+
+	log.Printf("Record value of %s differs from current IP of %v", dnsRecord.Value, currentIpv4)
+	log.Printf("Deleting DNS record: %s", dnsRecord.Id)
+	DeleteIpv4Record(zoneId, dnsRecord.Id)
+
+	log.Printf("Creating DNS A record for %s with value %v", hostname, currentIpv4)
+	CreateIPv4Record(currentIpv4, zoneId)
+
 	log.Printf("Current IPv4 record: %v", dnsRecord)
 }
 
@@ -297,5 +309,25 @@ func CreateIPv4Record(target net.IP, zoneId string) error {
 		return errors.New("failed to create record")
 	}
 
+	return nil
+}
+
+func DeleteIpv4Record(zoneId, recordId string) error {
+	client := http.Client{}
+
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/dns_zones/%s/dns_records/%s?access_token=%s", apiEndpoint, zoneId, recordId, personalAccessToken), nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if res.Status != "204" {
+		return fmt.Errorf("failed to delete DNS record %s, got status code %s", recordId, res.Status)
+	}
 	return nil
 }
