@@ -43,18 +43,21 @@ func init() {
 
 	flag.Parse()
 
+	// PAT must be set via cli or by environment varialbe
 	if personalAccessToken == "" {
 		log.Fatalln("Personal access token required. Use -pat flag or set NDDNS_PAT environment variable")
 	}
 
+	// Domain is required
 	if domain == "" {
 		log.Fatalln("Domain required. Use -domain flag")
 	}
 	hostname = BuildHostname(domain, subdomain)
 
+	// TTL must be a positive integer
 	t, err := strconv.ParseInt(ttlString, 10, 32)
 	if err != nil {
-		log.Fatalln("Failed to parse ttl as number")
+		log.Fatalln("Failed to parse TTL as number")
 	}
 
 	if t <= 0 {
@@ -63,9 +66,10 @@ func init() {
 
 	ttl = t
 
+	// Poll duration must be valid time.Duration
 	p, err := time.ParseDuration(pollIntervalString)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to parse poll duration: %v", err)
 	}
 	pollInterval = p
 }
@@ -83,12 +87,14 @@ func main() {
 	}
 }
 
+// Get body from http.Response as bytes
 func ResponseToBodyBytes(res *http.Response) ([]byte, error) {
 	defer res.Body.Close()
 
 	return io.ReadAll(res.Body)
 }
 
+// Get current IPv4 address
 func GetCurrentIpv4() (net.IP, error) {
 	res, err := http.Get("https://icanhazip.com")
 	if err != nil {
@@ -113,6 +119,7 @@ func GetCurrentIpv4() (net.IP, error) {
 	return ip, nil
 }
 
+// Combine subdomain and domain if necessary
 func BuildHostname(domain, subdomain string) string {
 	if subdomain == "" {
 		return domain
@@ -133,6 +140,7 @@ func (e *ZoneNotFoundError) Error() string {
 	return fmt.Sprintf("No zone found for domain %s", e.Domain)
 }
 
+// Gets Netlify zone ID for given domain
 func GetZoneId(domain, pat string) (string, error) {
 	var (
 		zones  []DnsZone
@@ -179,6 +187,7 @@ type DnsRecord struct {
 	Value    string `json:"value"`
 }
 
+// Gets current DNS record for hostname if one exists, nil if it does not exist
 func GetCurrentRecord(zoneId string) (*DnsRecord, error) {
 	client := http.Client{}
 	recordsRequest, err := http.NewRequest("GET", fmt.Sprintf("%s/dns_zones/%s/dns_records?access_token=%s", apiEndpoint, zoneId, personalAccessToken), nil)
@@ -229,6 +238,7 @@ type CreateRecordResponse struct {
 	Ttl      int64  `json:"ttl"`
 }
 
+// Create an IPv4 A record with a value of the given target
 func CreateIPv4Record(zoneId string, target net.IP) error {
 	client := http.Client{}
 
@@ -276,6 +286,7 @@ func CreateIPv4Record(zoneId string, target net.IP) error {
 	return nil
 }
 
+// Delete the given DNS record
 func DeleteIpv4Record(zoneId, recordId string) error {
 	client := http.Client{}
 
@@ -296,6 +307,7 @@ func DeleteIpv4Record(zoneId, recordId string) error {
 	return nil
 }
 
+// Check for changes to the system's IP address and update the DNS record
 func PollForChanges() error {
 	currentIpv4, err := GetCurrentIpv4()
 	if err != nil {
